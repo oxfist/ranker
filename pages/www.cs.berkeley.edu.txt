@@ -1,0 +1,61 @@
+Homepage for Paul N. Hilfinger
+
+  Paul N. Hilfinger
+
+Office: 787 SODA HALL #1776
+     Computer Science Division, EECS
+     UC Berkeley
+     Berkeley  CA  94720-1776
+    
+     (510) 642-8401
+     FAX: (510) 642-5775
+ My links 
+ I run the Berkeley Programming Contest. 
+     It typically runs in late September. 
+  Discussion on security that I started
+after listening to various incompetent blather about the Love Bug virus 
+on the Newshour with Jim Lehrer.  I also have a draft of my own
+flame on the subject.
+ Assorted Files for Distribution.
+  Home page for Ada Core Technologies, where
+you will find the best Ada 05 compiler available (a version of GCC), as well
+as an Ada-aware version of GDB, the GNU debugger.
+ The Titanium project.
+ A collection of quotations and such from 
+     plan files and other sources.
+ A collection of extra-credit problems 
+from my tests.
+ Assorted Software 
+ PRCS: The Project
+Revision Control System.  This is a really great improvement on
+CVS for source-code control.
+ GJDB: A Java debugger for Sun's JDK 1.3, 
+adjusted to be Emacs-compatible and to allow input from stdin.
+ ucb package: A package of Java 
+     classes providing C and C++-like I/O (Java-ized versions of
+     printf, scanf, &amp;lt&amp;lt, and &amp;gt&amp;gt).  
+     HTML documentation
+     also available.
+ Description of mprof (also in a
+     Postscript version), 
+     a memory profiler developed by Ben Zorn.  You can 
+     download the sources for the 
+     latest version.
+ Teaching-related links 
+ The Undergraduate Notes. 
+ 
+	Guidelines for undergraduate course grading.  
+ 
+	Guidelines for graduate course grading.  
+ Report on grade distributions in EECS and LSCS.
+ CS61B for Fall 2004.
+ CS61B for Fall 2002.
+ CS61B for Fall 2001.
+ Other interesting links I've encountered 
+ 
+Results obtained from Argonne Labs theorem provers
+ General Berkeley links 
+ The Berkeley Computer Science Division Home Page
+ Paul N. Hilfinger 
+Hilfinger@CS.Berkeley.EDU 
+Page last modified on Sun Mar 24 12:44:44 2013.
