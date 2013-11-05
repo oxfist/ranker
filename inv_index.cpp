@@ -9,6 +9,7 @@ hash<string> hash_fn;
 
 set<size_t> fillStopWords();
 void readPages(set<size_t> stopWords);
+bool isStopWord(string word, set<size_t> stopWords);
 
 int main() {
     set<size_t> stopWords = fillStopWords();
@@ -55,14 +56,17 @@ set<size_t> fillStopWords() {
 
 void readPages(set<size_t> stopWords) {
     ifstream pagesFile;
-    string line;
+    string word;
 
     pagesFile.open("pages/users.dcc.uchile.cl.txt");
 
     if (pagesFile)
-        while (pagesFile >> line) {
-            if (line == "\n")
-                cout << "\\n" << endl;
-            cout << line << endl;
+        while (pagesFile >> word) {
+            if (!isStopWord(word, stopWords))
+                cout << word << " is usable." << endl;
         }
+}
+
+bool isStopWord(string word, set<size_t> stopWords) {
+    return (stopWords.find( hash_fn(word) ) != stopWords.end());
 }
