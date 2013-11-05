@@ -12,7 +12,7 @@ def read_url(url)
     File.open("pages/#{file_name}", "w+") do |f|
         # Gets all the text between tags from the page
         # and writes it to the file.
-        doc = doc.search('//text()').to_s.encode('UTF-8').gsub(/&\w+;/, "").gsub(/[^\p{Word}]|_/, " ").gsub(/\s+/, "\n")
+        doc = doc.search('//text()').to_s.downcase.encode('UTF-8').gsub(/&\w+;/, "").gsub(/[^\p{Word}]|_/, " ").gsub(/\s+/, "\n")
         f.write doc
     end
     print "#{file_name} created!\n"
