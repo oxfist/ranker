@@ -60,7 +60,7 @@ void readPages(set<size_t> stopWords) {
     pagesFile.open("pages/users.dcc.uchile.cl.txt");
 
     if (pagesFile)
-        while (getline(pagesFile, line)) {
+        while (pagesFile >> line) {
             if (line == "\n")
                 cout << "\\n" << endl;
             cout << line << endl;
