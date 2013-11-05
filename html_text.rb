@@ -1,3 +1,4 @@
+# encoding: UTF-8
 require 'open-uri'
 require 'nokogiri'
 
@@ -11,7 +12,8 @@ def read_url(url)
     File.open("pages/#{file_name}", "w+") do |f|
         # Gets all the text between tags from the page
         # and writes it to the file.
-        doc.search('//text()').each {|str| f.write str}
+        doc = doc.search('//text()').to_s.encode('UTF-8').gsub(/&\w+;/, "").gsub(/[^\p{Word}]|_/, " ").gsub(/\s+/, "\n")
+        f.write doc
     end
     print "#{file_name} created!\n"
 end
