@@ -14,13 +14,13 @@ hash<string> hash_fn;
 set<size_t> stopWords;
 map<size_t, map<unsigned int, unsigned int>> invertedIndex;
 
-void readPage(string archiveToRead, unsigned int pageId);
+void readPage(map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex,string archiveToRead, unsigned int pageId);
 set<size_t> fillStopWords();
-unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId);
-bool isInInvIndex(string word);
-bool isStopWord(string word);
+unsigned int genInvertedIndex(map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex, fsystem::path dir_path, unsigned int pageId);
+bool isInInvIndex(string word, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex);
+bool isStopWord(string word, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex);
+void updateFreq(string word, unsigned int pageId, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex);
 map<unsigned int, unsigned int> newPage(unsigned int id);
-void updateFreq(string word, unsigned int pageId);
 
 int main() {
     map<size_t, map<unsigned int, unsigned int>> invertedIndex;
@@ -28,13 +28,16 @@ int main() {
     fsystem::path dir_path("pages");
 
     /* Determina un hash a partir de la palabra a leer. */
-    string word;
+    string word = "Baeza";
 
     /* Se genera el set stopWords */
     stopWords = fillStopWords();
 
     /* Se crea el índice invertido */
-    genInvertedIndex(dir_path, 1);
+    genInvertedIndex(invertedIndex, dir_path, 1);
+
+    for (int i = 1; i < 4; i++)
+        cout << word << " " << invertedIndex[hash_fn(word)][i] << endl;
 
     return 0;
 }
@@ -55,15 +58,15 @@ set<size_t> fillStopWords() {
     return stopWords;
 }
 
-unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId) {
+unsigned int genInvertedIndex(map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex, fsystem::path dir_path, unsigned int pageId) {
 
     fsystem::directory_iterator end_itr;
     for ( fsystem::directory_iterator itr( dir_path ); itr != end_itr; ++itr ) {
         if ( is_directory(itr->status()) )
-            pageId = genInvertedIndex(itr->path().string(), pageId);
+            pageId = genInvertedIndex(globalInvertedIndex, itr->path().string(), pageId);
         else {
             cout << "[" << pageId << "] " << itr->path().filename() << "... ";
-            readPage(itr->path().string(),pageId);
+            readPage(globalInvertedIndex,itr->path().string(),pageId);
             cout << "done!\n";
 
             pageId++;
@@ -73,7 +76,7 @@ unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId) {
     return pageId;
 }
 
-void readPage(string archiveToRead, unsigned int pageId) {
+void readPage(map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex, string archiveToRead, unsigned int pageId) {
 
     ifstream pagesFile;
     string word;
@@ -82,30 +85,29 @@ void readPage(string archiveToRead, unsigned int pageId) {
 
     if (pagesFile) {
         while (pagesFile >> word) {
-            if (!isStopWord(word)) {
+            if (!isStopWord(word, globalInvertedIndex)) {
 
                 /*
                  * Si la palabra no está en el índice invertido,
                  * se agrega, si no, se actualiza la frecuencia.
                  * */
-                if (!isInInvIndex(word)) {
-                    invertedIndex[hash_fn(word)] = newPage(pageId);
+                if (!isInInvIndex(word, globalInvertedIndex)) {
+                    globalInvertedIndex[hash_fn(word)] = newPage(pageId);
                 } else {
-                    updateFreq(word, pageId);
+                    updateFreq(word, pageId, globalInvertedIndex);
                 }
 
             }
-            //cout << word << " " << invertedIndex[hash_fn(word)][pageId] << endl;
         }
     }
 }
 
-bool isStopWord(string word) {
+bool isStopWord(string word, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex) {
     return (stopWords.find( hash_fn(word) ) != stopWords.end());
 }
 
-bool isInInvIndex(string word) {
-    return (invertedIndex.find( hash_fn(word) ) != invertedIndex.end());
+bool isInInvIndex(string word, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex) {
+    return (globalInvertedIndex.find( hash_fn(word) ) != globalInvertedIndex.end());
 }
 
 /*
@@ -119,7 +121,7 @@ map<unsigned int, unsigned int> newPage(unsigned int id) {
 }
 
 /* Actualiza la frecuencia para el documento pageId o agrega un nuevo pageId con frecuencia 1. */
-void updateFreq(string word, unsigned int pageId) {
-    (invertedIndex[hash_fn(word)].find(pageId) != invertedIndex[hash_fn(word)].end()) ?
-        invertedIndex[hash_fn(word)][pageId] += 1 : invertedIndex[hash_fn(word)][pageId] = 1;
+void updateFreq(string word, unsigned int pageId, map<size_t, map<unsigned int, unsigned int>> &globalInvertedIndex) {
+    (globalInvertedIndex[hash_fn(word)].find(pageId) != globalInvertedIndex[hash_fn(word)].end()) ?
+        globalInvertedIndex[hash_fn(word)][pageId] += 1 : globalInvertedIndex[hash_fn(word)][pageId] = 1;
 }
