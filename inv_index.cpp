@@ -14,7 +14,7 @@ hash<string> hash_fn;
 set<size_t> stopWords;
 map<size_t, map<unsigned int, unsigned int>> invertedIndex;
 
-void readPages(string archiveToRead, unsigned int pageId);
+void readPage(string archiveToRead, unsigned int pageId);
 set<size_t> fillStopWords();
 unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId);
 bool isInInvIndex(string word);
@@ -25,16 +25,16 @@ void updateFreq(string word, unsigned int pageId);
 int main() {
     map<size_t, map<unsigned int, unsigned int>> invertedIndex;
 
-    unsigned int totalId;
     fsystem::path dir_path("pages");
 
     /* Determina un hash a partir de la palabra a leer. */
     string word;
 
+    /* Se genera el set stopWords */
     stopWords = fillStopWords();
-    /* Se crea el índice invertido */
 
-    totalId = genInvertedIndex(dir_path, 1);
+    /* Se crea el índice invertido */
+    genInvertedIndex(dir_path, 1);
 
     return 0;
 }
@@ -62,7 +62,10 @@ unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId) {
         if ( is_directory(itr->status()) )
             pageId = genInvertedIndex(itr->path().string(), pageId);
         else {
-            cout<< "ID: " << pageId << " File: " << itr->path().filename() << "\n";
+            cout << "[" << pageId << "] " << itr->path().filename() << "... ";
+            readPage(itr->path().string(),pageId);
+            cout << "done!\n";
+
             pageId++;
         }
     }
@@ -70,7 +73,7 @@ unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId) {
     return pageId;
 }
 
-void readPages(string archiveToRead, unsigned int pageId) {
+void readPage(string archiveToRead, unsigned int pageId) {
 
     ifstream pagesFile;
     string word;
@@ -92,7 +95,7 @@ void readPages(string archiveToRead, unsigned int pageId) {
                 }
 
             }
-            cout << word << " " << invertedIndex[hash_fn(word)][pageId] << endl;
+            //cout << word << " " << invertedIndex[hash_fn(word)][pageId] << endl;
         }
     }
 }
