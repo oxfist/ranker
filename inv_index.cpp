@@ -23,21 +23,15 @@ void updateFreq(string word, unsigned int pageId, map<size_t, map<unsigned int, 
 map<unsigned int, unsigned int> newPage(unsigned int id);
 
 int main() {
-    map<size_t, map<unsigned int, unsigned int>> globalInvertedIndex;
 
+    /* Se abre el directorio 'dir_path' */
     fsystem::path dir_path("pages");
-
-    /* Determina un hash a partir de la palabra a leer. */
-    string word = "Baeza";
 
     /* Se genera el set stopWords */
     stopWords = fillStopWords();
 
     /* Se crea el índice invertido */
     genInvertedIndex(globalInvertedIndex, dir_path, 1);
-
-    for (int i = 1; i < 4; i++)
-        cout << word << " " << globalInvertedIndex[hash_fn(word)][i] << endl;
 
     return 0;
 }
