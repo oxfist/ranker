@@ -4,38 +4,38 @@
 #include <algorithm>
 #include <set>
 #include <map>
+#include <boost/filesystem.hpp>
 
 using namespace std;
+namespace fsystem = boost::filesystem;
 
 hash<string> hash_fn;
 
+set<size_t> stopWords;
+map<size_t, map<unsigned int, unsigned int>> invertedIndex;
+
+void readPages(string archiveToRead, unsigned int pageId);
 set<size_t> fillStopWords();
-void readPages(set<size_t> stopWords, map<size_t, map<unsigned int, unsigned int>> invertedIndex);
-bool isInInvIndex(string word, map<size_t, map<unsigned int, unsigned int>> invertedIndex);
-bool isStopWord(string word, set<size_t> stopWords);
+unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId);
+bool isInInvIndex(string word);
+bool isStopWord(string word);
 map<unsigned int, unsigned int> newPage(unsigned int id);
-void updateFreq(string word, unsigned int pageId, map<size_t, map<unsigned int, unsigned int>> &invertedIndex);
+void updateFreq(string word, unsigned int pageId);
 
 int main() {
     map<size_t, map<unsigned int, unsigned int>> invertedIndex;
-    set<size_t> stopWords = fillStopWords();
+
+    unsigned int totalId;
+    fsystem::path dir_path("pages");
 
     /* Determina un hash a partir de la palabra a leer. */
     string word;
-    
-    /* Se imprime la cantidad de elementos del set. */
-    cout << stopWords.size() << endl;
 
-    /* 
-     * Ciclo que, dada una palabra, retorna true si se encuentra en el set
-     * o false en caso contrario.
-     */
-    while (true) {
-        cin >> word;
-        if (word == "0")
-            break;
-        readPages(stopWords, invertedIndex);
-    }
+    stopWords = fillStopWords();
+    /* Se crea el índice invertido */
+
+    totalId = genInvertedIndex(dir_path, 1);
+
     return 0;
 }
 
@@ -49,48 +49,63 @@ set<size_t> fillStopWords() {
     stopWordsFile.open("sw.txt");
     if (stopWordsFile.is_open())
         while (getline(stopWordsFile, line))
-
             /* Inserta en el set el hash de la palabra. */
             stopWords.insert( hash_fn(line) );
 
     return stopWords;
 }
 
-void readPages(set<size_t> stopWords, map<size_t, map<unsigned int, unsigned int>> invertedIndex) {
+unsigned int genInvertedIndex(fsystem::path dir_path, unsigned int pageId) {
+
+    fsystem::directory_iterator end_itr;
+    for ( fsystem::directory_iterator itr( dir_path ); itr != end_itr; ++itr ) {
+        if ( is_directory(itr->status()) )
+            pageId = genInvertedIndex(itr->path().string(), pageId);
+        else {
+            cout<< "ID: " << pageId << " File: " << itr->path().filename() << "\n";
+            pageId++;
+        }
+    }
+
+    return pageId;
+}
+
+void readPages(string archiveToRead, unsigned int pageId) {
+
     ifstream pagesFile;
     string word;
-    unsigned int pageId = 0;
 
-    pagesFile.open("pages/users.dcc.uchile.cl.txt");
+    pagesFile.open(archiveToRead);
 
     if (pagesFile) {
         while (pagesFile >> word) {
-            if (!isStopWord(word, stopWords)) {
-                
+            if (!isStopWord(word)) {
+
                 /*
-                 * Si la palabra no está en el índice invertido, 
+                 * Si la palabra no está en el índice invertido,
                  * se agrega, si no, se actualiza la frecuencia.
                  * */
-                if (!isInInvIndex(word, invertedIndex)) {
+                if (!isInInvIndex(word)) {
                     invertedIndex[hash_fn(word)] = newPage(pageId);
                 } else {
-                    updateFreq(word, pageId, invertedIndex);
+                    updateFreq(word, pageId);
                 }
+
             }
             cout << word << " " << invertedIndex[hash_fn(word)][pageId] << endl;
         }
     }
 }
 
-bool isStopWord(string word, set<size_t> stopWords) {
+bool isStopWord(string word) {
     return (stopWords.find( hash_fn(word) ) != stopWords.end());
 }
 
-bool isInInvIndex(string word, map<size_t, map<unsigned int, unsigned int>> invertedIndex) {
+bool isInInvIndex(string word) {
     return (invertedIndex.find( hash_fn(word) ) != invertedIndex.end());
 }
 
-/* 
+/*
  * Agrega un nuevo map correspondiente a un pageId nuevo con frecuencia 1,
  * en el caso de que la palabra no exista en el índice invertido.
  */
@@ -101,7 +116,7 @@ map<unsigned int, unsigned int> newPage(unsigned int id) {
 }
 
 /* Actualiza la frecuencia para el documento pageId o agrega un nuevo pageId con frecuencia 1. */
-void updateFreq(string word, unsigned int pageId, map<size_t, map<unsigned int, unsigned int>> &invertedIndex) {
+void updateFreq(string word, unsigned int pageId) {
     (invertedIndex[hash_fn(word)].find(pageId) != invertedIndex[hash_fn(word)].end()) ?
         invertedIndex[hash_fn(word)][pageId] += 1 : invertedIndex[hash_fn(word)][pageId] = 1;
 }
