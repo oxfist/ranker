@@ -26,7 +26,7 @@ unsigned int genInvertedIndex(IIndex &invertedIndex, fsystem::path dir_path, uns
 bool isInInvIndex(string word, IIndex &invertedIndex);
 bool isStopWord(string word);
 void updateFreq(string word, unsigned int pageId, IIndex &invertedIndex);
-void calculateTfIdf(unsigned int totalDocs, string query);
+void calculateTfIdf(double totalDocs, string query);
 TermFrec newPage(unsigned int id);
 void showResults();
 
@@ -44,7 +44,7 @@ int main() {
     totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
     /* Se calcula tf-idf para cada uno de los terminos */
-    calculateTfIdf(totalDocs-1, "Home");
+    calculateTfIdf((double) totalDocs-1, "asd");
 
     cout << "Resultados parciales con map ResultQuery\n";
 
@@ -54,7 +54,7 @@ int main() {
     return 0;
 }
 
-void calculateTfIdf(unsigned int totalDocs, string query) {
+void calculateTfIdf(double totalDocs, string query) {
 
     IIndex::iterator itr;
     TermFrec::iterator itr_tf;
@@ -68,8 +68,8 @@ void calculateTfIdf(unsigned int totalDocs, string query) {
         cout << "term: " << itr->first << "\n";
         for (itr_tf = itr->second.begin(); itr_tf != itr->second.end(); ++itr_tf) {
             cout << "doc:" << itr_tf->first << " - frec: " << itr_tf->second << "\n";
+
             tf_idf = itr_tf->second * log (totalDocs/itr->second.size());
-            cout << "tf_idf = " << tf_idf<< "\n";
 
             result[itr_tf->first][itr->first] = tf_idf;
         }
