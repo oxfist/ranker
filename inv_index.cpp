@@ -1,10 +1,11 @@
+#include <boost/filesystem.hpp>
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <functional>
 #include <algorithm>
 #include <set>
 #include <map>
-#include <boost/filesystem.hpp>
 
 using namespace std;
 namespace fsystem = boost::filesystem;
@@ -21,8 +22,9 @@ IIndex globalInvertedIndex;
 ResultQuery result;
 
 set<size_t> fillStopWords();
-void readPage(IIndex &invertedIndex,string archiveToRead, unsigned int pageId);
-unsigned int genInvertedIndex(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId);
+void readPage(IIndex &invertedIndex, string archiveToRead, unsigned int pageId);
+unsigned int genInvertedIndex
+(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId);
 bool isInInvIndex(string word, IIndex &invertedIndex);
 bool isStopWord(string word);
 void updateFreq(string word, unsigned int pageId, IIndex &invertedIndex);
@@ -31,7 +33,6 @@ TermFrec newPage(unsigned int id);
 void showResults();
 
 int main() {
-
     unsigned int totalDocs;
 
     /* Se abre el directorio 'dir_path' */
@@ -44,7 +45,7 @@ int main() {
     totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
     /* Se calcula tf-idf para cada uno de los terminos */
-    calculateTfIdf((double) totalDocs-1, "asd");
+    calculateTfIdf(static_cast<double>(totalDocs-1), "asd");
 
     cout << "Resultados parciales con map ResultQuery\n";
 
@@ -55,7 +56,6 @@ int main() {
 }
 
 void calculateTfIdf(double totalDocs, string query) {
-
     IIndex::iterator itr;
     TermFrec::iterator itr_tf;
 
@@ -66,17 +66,18 @@ void calculateTfIdf(double totalDocs, string query) {
     if ( itr != globalInvertedIndex.end() ) {
         cout << "------------------------------------------\n";
         cout << "term: " << itr->first << "\n";
-        for (itr_tf = itr->second.begin(); itr_tf != itr->second.end(); ++itr_tf) {
-            cout << "doc:" << itr_tf->first << " - frec: " << itr_tf->second << "\n";
+        for (itr_tf = itr->second.begin();
+                itr_tf != itr->second.end(); ++itr_tf) {
+            cout << "doc:" << itr_tf->first;
+            cout << " - frec: " << itr_tf->second << "\n";
 
-            tf_idf = itr_tf->second * log (totalDocs/itr->second.size());
+            tf_idf = itr_tf->second * log(totalDocs/itr->second.size());
 
             result[itr_tf->first][itr->first] = tf_idf;
         }
     }
 
     cout << "------------------------------------------\n";
-
 }
 
 void showResults() {
@@ -85,8 +86,10 @@ void showResults() {
 
     for (itr_query = result.begin(); itr_query != result.end(); ++itr_query) {
         cout << "doc: " << itr_query->first << "\n";
-        for (itr_frec = itr_query->second.begin(); itr_frec != itr_query->second.end(); ++itr_frec)
-            cout << "term: " << itr_frec->first << " tfidf: "<< itr_frec->second << "\n";
+        for (itr_frec = itr_query->second.begin();
+                itr_frec != itr_query->second.end(); ++itr_frec)
+            cout << "term: " << itr_frec->first;
+            cout << " tfidf: "<< itr_frec->second << "\n";
     }
 }
 
@@ -101,20 +104,32 @@ set<size_t> fillStopWords() {
     if (stopWordsFile.is_open())
         while (getline(stopWordsFile, line))
             /* Inserta en el set el hash de la palabra. */
-            stopWords.insert( hash_fn(line) );
+            stopWords.insert(hash_fn(line));
 
     return stopWords;
 }
 
-unsigned int genInvertedIndex(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId) {
-
+/* 
+ * Se recorre el directorio padre, se genera el índice invertido con todos los
+ * documentos encontrados al interior y se retorna la cantidad total éstos.
+ */
+unsigned int genInvertedIndex
+(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId) {
     fsystem::directory_iterator end_itr;
-    for ( fsystem::directory_iterator itr( dir_path ); itr != end_itr; ++itr ) {
-        if ( is_directory(itr->status()) )
-            pageId = genInvertedIndex(invertedIndex, itr->path().string(), pageId);
-        else {
+
+    /* Se recorre todo el path hasta que no queden elementos por recorrer. */
+    for ( fsystem::directory_iterator itr( dir_path );
+            itr != end_itr; ++itr ) {
+        /* 
+         * Si el elemento es directorio, se ingresa 
+         * y se guarda el Id del último doc.
+         */
+        if ( is_directory(itr->status()) ) {
+            pageId = genInvertedIndex(invertedIndex, itr->path().string(),
+                    pageId);
+        } else {
             cout << "[" << pageId << "] " << itr->path().filename() << "... ";
-            readPage(invertedIndex,itr->path().string(),pageId);
+            readPage(invertedIndex, itr->path().string(), pageId);
             cout << "done!\n";
 
             pageId++;
@@ -124,17 +139,16 @@ unsigned int genInvertedIndex(IIndex &invertedIndex, fsystem::path dir_path, uns
     return pageId;
 }
 
-void readPage(IIndex &invertedIndex, string archiveToRead, unsigned int pageId) {
-
+void readPage
+(IIndex &invertedIndex, string fileToRead, unsigned int pageId) {
     ifstream pagesFile;
     string word;
 
-    pagesFile.open(archiveToRead);
+    pagesFile.open(fileToRead);
 
     if (pagesFile) {
         while (pagesFile >> word) {
             if (!isStopWord(word)) {
-
                 /*
                  * Si la palabra no está en el índice invertido,
                  * se agrega, si no, se actualiza la frecuencia.
@@ -144,7 +158,6 @@ void readPage(IIndex &invertedIndex, string archiveToRead, unsigned int pageId) 
                 } else {
                     updateFreq(word, pageId, invertedIndex);
                 }
-
             }
         }
     }
@@ -168,8 +181,13 @@ TermFrec newPage(unsigned int id) {
     return newFreqs;
 }
 
-/* Actualiza la frecuencia para el documento pageId o agrega un nuevo pageId con frecuencia 1. */
+/* 
+ * Actualiza la frecuencia para el documento pageId o
+ * agrega un nuevo pageId con frecuencia 1. 
+ */
 void updateFreq(string word, unsigned int pageId, IIndex &invertedIndex) {
-    (invertedIndex[hash_fn(word)].find(pageId) != invertedIndex[hash_fn(word)].end()) ?
-        invertedIndex[hash_fn(word)][pageId] += 1 : invertedIndex[hash_fn(word)][pageId] = 1;
+    (invertedIndex[hash_fn(word)].find(pageId) !=
+     invertedIndex[hash_fn(word)].end()) ?
+        invertedIndex[hash_fn(word)][pageId] += 1 :
+        invertedIndex[hash_fn(word)][pageId] = 1;
 }
