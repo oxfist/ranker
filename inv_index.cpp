@@ -34,6 +34,7 @@ void showResults();
 
 int main() {
     unsigned int totalDocs;
+    string query = "asd";
 
     /* Se abre el directorio 'dir_path' */
     fsystem::path dir_path("pages");
@@ -44,8 +45,8 @@ int main() {
     /* Se crea el índice invertido */
     totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
-    /* Se calcula tf-idf para cada uno de los terminos */
-    calculateTfIdf(static_cast<double>(totalDocs-1), "asd");
+    /* Se calcula tf-idf para cada uno de los términos */
+    calculateTfIdf(static_cast<double>(totalDocs-1), query);
 
     cout << "Resultados parciales con map ResultQuery\n";
 
@@ -58,21 +59,31 @@ int main() {
 void calculateTfIdf(double totalDocs, string query) {
     IIndex::iterator itr;
     TermFrec::iterator itr_tf;
-
+    
+    /* tf-idf de la query ingresada */
     double tf_idf;
 
     itr = globalInvertedIndex.find(hash_fn(query));
 
-    if ( itr != globalInvertedIndex.end() ) {
+    if (itr != globalInvertedIndex.end()) {
         cout << "------------------------------------------\n";
         cout << "term: " << itr->first << "\n";
+
+        /* Se itera sobre el map con docId y frecuencias */
         for (itr_tf = itr->second.begin();
                 itr_tf != itr->second.end(); ++itr_tf) {
             cout << "doc:" << itr_tf->first;
             cout << " - frec: " << itr_tf->second << "\n";
-
+            
+            /*
+             * Frecuencia del término en el documento multiplicada
+             * por el logaritmo de la cantidad de documentos dividida
+             * por la cantidad de documentos en los que se encuentra
+             * el término
+             */
             tf_idf = itr_tf->second * log(totalDocs/itr->second.size());
-
+            
+            /* Se guarda el tf-idf asociado al docId y el término */
             result[itr_tf->first][itr->first] = tf_idf;
         }
     }
