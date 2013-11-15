@@ -13,13 +13,13 @@ namespace fsystem = boost::filesystem;
 typedef map<unsigned int, unsigned int> TermFrec;
 typedef map<size_t, TermFrec> InvIndex;
 typedef map<size_t, double> TfIdf;
-typedef map<unsigned int, TfIdf> ResultQuery;
+typedef map<unsigned int, TfIdf> QueryResult;
 
 set<size_t> stopWords;
 hash<string> hash_fn;
 
 InvIndex globalInvertedIndex;
-ResultQuery result;
+QueryResult result;
 
 set<size_t> fillStopWords();
 void readPage(InvIndex &invertedIndex, string archiveToRead, unsigned int pageId);
@@ -48,7 +48,7 @@ int main() {
     /* Se calcula tf-idf para cada uno de los términos */
     computeTfIdf(static_cast<double>(totalDocs-1), query);
 
-    cout << "Resultados parciales con map ResultQuery\n";
+    cout << "Resultados parciales con map QueryResult\n";
 
     /* Se muestran los resultados parciales */
     showResults();
@@ -92,7 +92,7 @@ void computeTfIdf(double totalDocs, string query) {
 }
 
 void showResults() {
-    ResultQuery::iterator itr_query;
+    QueryResult::iterator itr_query;
     TfIdf::iterator itr_frec;
 
     for (itr_query = result.begin(); itr_query != result.end(); ++itr_query) {
