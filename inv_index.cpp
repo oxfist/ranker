@@ -11,24 +11,24 @@ using namespace std;
 namespace fsystem = boost::filesystem;
 
 typedef map<unsigned int, unsigned int> TermFrec;
-typedef map<size_t, TermFrec> IIndex;
+typedef map<size_t, TermFrec> InvIndex;
 typedef map<size_t, double> TfIdf;
 typedef map<unsigned int, TfIdf> ResultQuery;
 
 set<size_t> stopWords;
 hash<string> hash_fn;
 
-IIndex globalInvertedIndex;
+InvIndex globalInvertedIndex;
 ResultQuery result;
 
 set<size_t> fillStopWords();
-void readPage(IIndex &invertedIndex, string archiveToRead, unsigned int pageId);
+void readPage(InvIndex &invertedIndex, string archiveToRead, unsigned int pageId);
 unsigned int genInvertedIndex
-(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId);
-bool isInInvIndex(string word, IIndex &invertedIndex);
+(InvIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId);
+bool isInInvIndex(string word, InvIndex &invertedIndex);
 bool isStopWord(string word);
-void updateFreq(string word, unsigned int pageId, IIndex &invertedIndex);
-void calculateTfIdf(double totalDocs, string query);
+void updateFreq(string word, unsigned int pageId, InvIndex &invertedIndex);
+void computeTfIdf(double totalDocs, string query);
 TermFrec newPage(unsigned int id);
 void showResults();
 
@@ -46,7 +46,7 @@ int main() {
     totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
     /* Se calcula tf-idf para cada uno de los términos */
-    calculateTfIdf(static_cast<double>(totalDocs-1), query);
+    computeTfIdf(static_cast<double>(totalDocs-1), query);
 
     cout << "Resultados parciales con map ResultQuery\n";
 
@@ -56,8 +56,8 @@ int main() {
     return 0;
 }
 
-void calculateTfIdf(double totalDocs, string query) {
-    IIndex::iterator itr;
+void computeTfIdf(double totalDocs, string query) {
+    InvIndex::iterator itr;
     TermFrec::iterator itr_tf;
     
     /* tf-idf de la query ingresada */
@@ -125,7 +125,7 @@ set<size_t> fillStopWords() {
  * documentos encontrados al interior y se retorna la cantidad total éstos.
  */
 unsigned int genInvertedIndex
-(IIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId) {
+(InvIndex &invertedIndex, fsystem::path dir_path, unsigned int pageId) {
     fsystem::directory_iterator end_itr;
 
     /* Se recorre todo el path hasta que no queden elementos por recorrer. */
@@ -151,7 +151,7 @@ unsigned int genInvertedIndex
 }
 
 void readPage
-(IIndex &invertedIndex, string fileToRead, unsigned int pageId) {
+(InvIndex &invertedIndex, string fileToRead, unsigned int pageId) {
     ifstream pagesFile;
     string word;
 
@@ -178,7 +178,7 @@ bool isStopWord(string word) {
     return (stopWords.find( hash_fn(word) ) != stopWords.end());
 }
 
-bool isInInvIndex(string word, IIndex &invertedIndex) {
+bool isInInvIndex(string word, InvIndex &invertedIndex) {
     return (invertedIndex.find( hash_fn(word) ) != invertedIndex.end());
 }
 
@@ -196,7 +196,13 @@ TermFrec newPage(unsigned int id) {
  * Actualiza la frecuencia para el documento pageId o
  * agrega un nuevo pageId con frecuencia 1. 
  */
-void updateFreq(string word, unsigned int pageId, IIndex &invertedIndex) {
+void updateFreq(string word, unsigned int pageId, InvIndex &invertedIndex) {
+    /*
+     * Si se encuentra la página en el índice invertido, entonces
+     * se aumenta la frecuencia de la palabra en la página, si no
+     * se agrega la nueva página para la palabra dada y se asigna
+     * frecuencia 1.
+     */
     (invertedIndex[hash_fn(word)].find(pageId) !=
      invertedIndex[hash_fn(word)].end()) ?
         invertedIndex[hash_fn(word)][pageId] += 1 :
