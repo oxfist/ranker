@@ -34,7 +34,7 @@ void showResults();
 
 int main() {
     unsigned int totalDocs;
-    string query = "asd";
+    string query = "information";
 
     /* Se abre el directorio 'dir_path' */
     fsystem::path dir_path("pages");
@@ -72,7 +72,7 @@ void calculateTfIdf(double totalDocs, string query) {
         /* Se itera sobre el map con docId y frecuencias */
         for (itr_tf = itr->second.begin();
                 itr_tf != itr->second.end(); ++itr_tf) {
-            cout << "doc:" << itr_tf->first;
+            cout << "doc: " << itr_tf->first;
             cout << " - frec: " << itr_tf->second << "\n";
             
             /*
