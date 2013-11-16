@@ -10,9 +10,9 @@
 #include <algorithm>
 #include <set>
 #include <map>
+#include <vector>
 
 namespace fsystem = boost::filesystem;
-namespace alg = boost::algorithm;
 
 /* Mapea el docId a la cantidad de veces que el término aparece. */
 typedef std::map<unsigned int, unsigned int> TermFreq;
@@ -20,16 +20,19 @@ typedef std::map<unsigned int, unsigned int> TermFreq;
 /* Mapea un hash de std::string al map de tfs. */
 typedef std::map<size_t, TermFreq> InvIndex;
 
-/* Mapea un hash de std::string al tf-idf respectivo. */
-typedef std::map<size_t, double> TfIdf;
+/* Mapea un entero a un puntaje. */
+typedef std::map<size_t, double> Score;
 
 /* Mapea un docId con un map de hashes correspondiente a términos. */
-typedef std::map<unsigned int, TfIdf> QueryResult;
+typedef std::map<unsigned int, Score> QueryResult;
 
 std::set<size_t> stopWords;
 std::hash<std::string> hash_fn;
+std::vector<Score> scoresVector;
 
 InvIndex globalInvertedIndex;
+
+/* Mapea un docId al tf-idf de todos los términos. */
 QueryResult result;
 
 std::set<size_t> fillStopWords();
@@ -44,7 +47,9 @@ void updateFreq
 void computeTfIdf(double totalDocs, std::string queryWord);
 TermFreq newPage(unsigned int id);
 void showResults();
-void readQueries(std::ifstream &queryFile, unsigned int totalDocs);
+void readQueries(std::ifstream *queryFile, unsigned int totalDocs);
+void rankDocs(std::string line, unsigned int termsInDocOccurrencies,
+        unsigned int totalDocs);
 
 int main() {
     unsigned int totalDocs;
@@ -61,40 +66,80 @@ int main() {
     /* Se crea el índice invertido */
     totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
-    readQueries(queryFile, totalDocs-1);
+    readQueries(&queryFile, totalDocs-1);
 
     std::cout << "Resultados parciales con map QueryResult\n";
 
     /* Se muestran los resultados parciales */
     showResults();
 
+    queryFile.close();
+
     return 0;
 }
 
-void readQueries(std::ifstream &queryFile, unsigned int totalDocs) {
+void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
     std::string line, queryWord;
+    /* Contador de términos de la query. */
+    unsigned int termsInDocOccurrencies;
 
     while (queryFile) {
-        getline(queryFile, line);
+        getline((*queryFile), line);
+        if (line == "") {
+            break;
+        }
+        termsInDocOccurrencies = 0;
         boost::tokenizer<> tokens(line);
 
-        /* Se recorre la colección con la línea parseada. */
-        for (boost::tokenizer<>::iterator beg = tokens.begin();
-                beg != tokens.end(); ++beg) {
+        /* Se recorre la línea parseada como una colección. */
+        for (auto beg : tokens) {
             /* Se calcula tf-idf para cada uno de los términos de la query. */
-            computeTfIdf(static_cast<double>(totalDocs-1), *beg);
+            computeTfIdf(static_cast<double>(totalDocs), beg);
+            termsInDocOccurrencies++;
         }
+        rankDocs(line, termsInDocOccurrencies, totalDocs);
     }
 }
 
-void computeTfIdf(double totalDocs, std::string query) {
-    InvIndex::iterator itr;
-    TermFreq::iterator itr_tf;
+void rankDocs(std::string line, unsigned int termsInDocOccurrencies,
+        unsigned int totalDocs) {
+    boost::tokenizer<> tokens(line);
+    double sumOfTfIdf = 0;
+    std::cout << "\n\nRankeando para: " << line << "\n";
 
+    for (auto beg : tokens) {
+
+        /* Se recupera el posting list del término dado. */
+        auto postingList = globalInvertedIndex[hash_fn(beg)];
+
+        /* 
+         * Se recorre el posting list para sacar el tf-idf
+         * de del map que tiene los resultados por docId.
+         */
+        for (auto pairDocFreq : postingList) {
+            /* 
+             * Se recupera el mapeo de término con tf-idf del map
+             * que tiene los resultados, para el documento dado.
+             */
+            auto termTfIdfs = result[pairDocFreq.first];
+
+            /* Se busca el tf-idf para el término dado. */
+            auto pairTermTfIdf = termTfIdfs.find(hash_fn(beg));
+            if (pairTermTfIdf != termTfIdfs.end()) {
+                std::cout << "tf-idf a sumar: " << (*pairTermTfIdf).second << "\n";
+                sumOfTfIdf += (*pairTermTfIdf).second;
+            }
+        }
+    }
+    std::cout << "tf-idf acumulado para query \"" << line << "\": ";
+    std::cout << sumOfTfIdf << "\n̉";
+}
+
+void computeTfIdf(double totalDocs, std::string query) {
     /* tf-idf de la query ingresada. */
     double tf_idf;
 
-    itr = globalInvertedIndex.find(hash_fn(query));
+    auto itr = globalInvertedIndex.find(hash_fn(query));
 
     if (itr != globalInvertedIndex.end()) {
         std::cout << "------------------------------------------\n";
@@ -102,10 +147,10 @@ void computeTfIdf(double totalDocs, std::string query) {
         std::cout << itr->first << "\n";
 
         /* Se itera sobre el map con docId y frecuencias para cada término. */
-        for (itr_tf = itr->second.begin();
-                itr_tf != itr->second.end(); ++itr_tf) {
-            std::cout << "doc: " << itr_tf->first;
-            std::cout << " - frec: " << itr_tf->second << "\n";
+        /* El recorrido se hace por referencia para una mayor eficiencia. */
+        for (auto &itr_tf : (*itr).second) {
+            std::cout << "doc: " << itr_tf.first;
+            std::cout << " - frec: " << itr_tf.second << "\n";
 
             /*
              * Frecuencia del término en el documento multiplicada
@@ -113,10 +158,11 @@ void computeTfIdf(double totalDocs, std::string query) {
              * por la cantidad de documentos en los que se encuentra
              * el término.
              */
-            tf_idf = itr_tf->second * log(totalDocs/itr->second.size());
+            tf_idf = itr_tf.second * log(totalDocs/(*itr).second.size());
+            std::cout << "tf-idf: " << tf_idf << "\n";
 
             /* Se guarda el tf-idf asociado al docId y el término. */
-            result[itr_tf->first][itr->first] = tf_idf;
+            result[itr_tf.first][(*itr).first] = tf_idf;
         }
     }
 
@@ -124,15 +170,12 @@ void computeTfIdf(double totalDocs, std::string query) {
 }
 
 void showResults() {
-    QueryResult::iterator itr_query;
-    TfIdf::iterator itr_frec;
-
-    for (itr_query = result.begin(); itr_query != result.end(); ++itr_query) {
-        std::cout << "doc: " << itr_query->first << "\n";
-        for (itr_frec = itr_query->second.begin();
-                itr_frec != itr_query->second.end(); ++itr_frec) {
-            std::cout << "term: " << itr_frec->first;
-            std::cout << " tfidf: "<< itr_frec->second << "\n";
+    /* Los iteradores se hacen constantes para mayor eficiencia. */
+    for (const auto itr_query : result) {
+        std::cout << "doc: " << itr_query.first << "\n";
+        for (const auto itr_frec : itr_query.second) {
+            std::cout << "term: " << itr_frec.first;
+            std::cout << " tfidf: "<< itr_frec.second << "\n";
         }
     }
 }
@@ -145,10 +188,12 @@ std::set<size_t> fillStopWords() {
     std::set<size_t> stopWords;
 
     stopWordsFile.open("sw.txt");
-    if (stopWordsFile.is_open())
-        while (getline(stopWordsFile, line))
+    if (stopWordsFile.is_open()) {
+        while (getline(stopWordsFile, line)) {
             /* Inserta en el set el hash de la palabra. */
             stopWords.insert(hash_fn(line));
+        }
+    }
 
     return stopWords;
 }
@@ -168,7 +213,7 @@ unsigned int genInvertedIndex
          * Si el elemento es directorio, se ingresa 
          * y se guarda el Id del último doc.
          */
-        if ( is_directory(itr->status()) ) {
+        if (is_directory(itr->status())) {
             pageId = genInvertedIndex(invertedIndex, itr->path().string(),
                     pageId);
         } else {
@@ -206,6 +251,8 @@ void readPage
             }
         }
     }
+
+    pagesFile.close();
 }
 
 bool isStopWord(std::string word) {
@@ -213,7 +260,7 @@ bool isStopWord(std::string word) {
 }
 
 bool isInInvIndex(std::string word, InvIndex &invertedIndex) {
-    return (invertedIndex.find( hash_fn(word) ) != invertedIndex.end());
+    return (invertedIndex.find(hash_fn(word)) != invertedIndex.end());
 }
 
 /*
@@ -234,8 +281,8 @@ void updateFreq
 (std::string word, unsigned int pageId, InvIndex &invertedIndex) {
     /*
      * Si se encuentra la página en el índice invertido, entonces
-     * se aumenta la frecuencia de la palabra en la página, si no
-     * se agrega la nueva página para la palabra dada y se asigna
+     * se aumenta la frecuencia del término en la página, si no,
+     * se agrega la nueva página para el término dado y se asigna
      * frecuencia 1.
      */
     (invertedIndex[hash_fn(word)].find(pageId) !=
