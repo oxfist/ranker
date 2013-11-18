@@ -1,8 +1,7 @@
 /* Copyright 2013 <Andrés Caro Q.> */
+#include <boost/tuple/tuple.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/split.hpp>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,6 +10,8 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <queue>
+#include <utility>
 
 namespace fsystem = boost::filesystem;
 
@@ -35,6 +36,14 @@ InvIndex globalInvertedIndex;
 /* Mapea un docId al tf-idf de todos los términos. */
 QueryResult result;
 
+class Prioritize {
+ public:
+    int operator() (const std::pair<unsigned int, double>& p1,
+        const std::pair<unsigned int, double>& p2) {
+        return p1.second > p2.second;
+    }
+};
+
 std::set<size_t> fillStopWords();
 void readPage
 (InvIndex &invertedIndex, std::string archiveToRead, unsigned int pageId);
@@ -44,12 +53,15 @@ bool isInInvIndex(std::string word, InvIndex &invertedIndex);
 bool isStopWord(std::string word);
 void updateFreq
 (std::string word, unsigned int pageId, InvIndex &invertedIndex);
-void computeTfIdf(double totalDocs, std::string queryWord);
+void computeTfIdf
+(double totalDocs, std::string queryWord,
+    std::map<unsigned int, unsigned int>* numTermsInDoc);
 TermFreq newPage(unsigned int id);
 void showResults();
 void readQueries(std::ifstream *queryFile, unsigned int totalDocs);
-void rankDocs(std::string line, unsigned int termsInDocOccurrencies,
-        unsigned int totalDocs);
+void rankDocs
+(std::string line, unsigned int totalDocs, unsigned int numTerms,
+    std::map<unsigned int, unsigned int>* numTermsInDoc);
 
 int main() {
     unsigned int totalDocs;
@@ -68,10 +80,10 @@ int main() {
 
     readQueries(&queryFile, totalDocs-1);
 
-    std::cout << "Resultados parciales con map QueryResult\n";
+    // std::cout << "Resultados parciales con map QueryResult\n";
 
     /* Se muestran los resultados parciales */
-    showResults();
+    // showResults();
 
     queryFile.close();
 
@@ -81,69 +93,98 @@ int main() {
 void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
     std::string line, queryWord;
     /* Contador de términos de la query. */
-    unsigned int termsInDocOccurrencies;
+    unsigned int numTerms;
+    /* 
+     * Map de docId a cantidad de términos
+     * de la query que aparecen en él.
+     */
+    std::map<unsigned int, unsigned int> numTermsInDoc;
 
     while (queryFile) {
         getline((*queryFile), line);
         if (line == "") {
             break;
         }
-        termsInDocOccurrencies = 0;
+        numTerms = 0;
         boost::tokenizer<> tokens(line);
 
         /* Se recorre la línea parseada como una colección. */
         for (auto beg : tokens) {
             /* Se calcula tf-idf para cada uno de los términos de la query. */
-            computeTfIdf(static_cast<double>(totalDocs), beg);
-            termsInDocOccurrencies++;
+            computeTfIdf(static_cast<double>(totalDocs), beg, &numTermsInDoc);
+            numTerms++;
         }
-        rankDocs(line, termsInDocOccurrencies, totalDocs);
+        /* Computar el score de los documentos para la query dada. */
+        rankDocs(line, totalDocs, numTerms, &numTermsInDoc);
+        numTermsInDoc.clear();
     }
 }
 
-void rankDocs(std::string line, unsigned int termsInDocOccurrencies,
-        unsigned int totalDocs) {
+void rankDocs
+(std::string line, unsigned int totalDocs, unsigned int numTerms,
+    std::map<unsigned int, unsigned int>* numTermsInDoc) {
     boost::tokenizer<> tokens(line);
-    double sumOfTfIdf = 0;
-    std::cout << "\n\nRankeando para: " << line << "\n";
+    std::map<unsigned int, double> scores;
+    std::map<unsigned int, double> sumOfTfIdf;
+    std::priority_queue
+        <std::pair<unsigned int, double>,
+        std::vector<std::pair<unsigned int, double>>, Prioritize> topK;
+    std::cout << "Rankeando para: \"" << line << "\"\n";
 
     for (auto beg : tokens) {
-
         /* Se recupera el posting list del término dado. */
         auto postingList = globalInvertedIndex[hash_fn(beg)];
 
         /* 
          * Se recorre el posting list para sacar el tf-idf
-         * de del map que tiene los resultados por docId.
+         * del map que tiene los resultados por docId.
          */
         for (auto pairDocFreq : postingList) {
+            unsigned int denom = numTerms*(*numTermsInDoc)[pairDocFreq.first];
             /* 
              * Se recupera el mapeo de término con tf-idf del map
-             * que tiene los resultados, para el documento dado.
+             * que tiene los resultados para el documento dado.
              */
             auto termTfIdfs = result[pairDocFreq.first];
+            std::cout << "doc: " << pairDocFreq.first << "\n";
 
             /* Se busca el tf-idf para el término dado. */
             auto pairTermTfIdf = termTfIdfs.find(hash_fn(beg));
             if (pairTermTfIdf != termTfIdfs.end()) {
-                std::cout << "tf-idf a sumar: " << (*pairTermTfIdf).second << "\n";
-                sumOfTfIdf += (*pairTermTfIdf).second;
+                std::cout << "tf-idf a sumar: ";
+                std::cout << (*pairTermTfIdf).second << "\n";
+
+                /* Se suma el tf-idf de la palabra actual de la query. */
+                scores[pairDocFreq.first] += ((*pairTermTfIdf).second/denom);
             }
         }
     }
-    std::cout << "tf-idf acumulado para query \"" << line << "\": ";
-    std::cout << sumOfTfIdf << "\n̉";
+    for (unsigned int i = 1; i < totalDocs; i++) {
+        if (topK.size() < 3) {
+            topK.push(std::pair<unsigned int, double>(i, scores[i]));
+        } else if (topK.top().second < scores[i]) {
+            topK.pop();
+            topK.push(std::pair<unsigned int, double>(i, scores[i]));
+        }
+    }
+    std::cout << "Imprimiendo\n";
+    while (!topK.empty()) {
+        std::cout << topK.top().first << " " << topK.top().second << "\n";
+        topK.pop();
+    }
 }
 
-void computeTfIdf(double totalDocs, std::string query) {
+void computeTfIdf
+(double totalDocs, std::string queryWord,
+    std::map<unsigned int, unsigned int>* numTermsInDoc) {
     /* tf-idf de la query ingresada. */
     double tf_idf;
 
-    auto itr = globalInvertedIndex.find(hash_fn(query));
+    auto itr = globalInvertedIndex.find(hash_fn(queryWord));
 
     if (itr != globalInvertedIndex.end()) {
         std::cout << "------------------------------------------\n";
-        std::cout << "term: \"" << query << "\" - ";
+        std::cout << "term: \"" << queryWord << "\" - ";
         std::cout << itr->first << "\n";
 
         /* Se itera sobre el map con docId y frecuencias para cada término. */
@@ -151,6 +192,12 @@ void computeTfIdf(double totalDocs, std::string query) {
         for (auto &itr_tf : (*itr).second) {
             std::cout << "doc: " << itr_tf.first;
             std::cout << " - frec: " << itr_tf.second << "\n";
+
+            /* 
+             * Se aumenta el contador de docs en los que está
+             * el término.
+             */
+            (*numTermsInDoc)[itr_tf.first] += 1;
 
             /*
              * Frecuencia del término en el documento multiplicada
