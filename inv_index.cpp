@@ -1,17 +1,16 @@
-/* Copyright 2013 <Andrés Caro Q.> */
+/* Copyright 2013 - Some rights reserved. <Andrés Caro Q.> */
 #include <boost/tuple/tuple.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include <string>
-#include <functional>
-#include <algorithm>
-#include <set>
-#include <map>
 #include <vector>
 #include <queue>
-#include <utility>
+#include <stack>
+#include <set>
+#include <map>
 
 namespace fsystem = boost::filesystem;
 
@@ -36,6 +35,10 @@ InvIndex globalInvertedIndex;
 /* Mapea un docId al tf-idf de todos los términos. */
 QueryResult result;
 
+/* 
+ * Se define la clase que contiene el método para
+ * comparar los elementos de la cola de prioridad.
+ */
 class Prioritize {
  public:
     int operator() (const std::pair<unsigned int, double>& p1,
@@ -123,13 +126,15 @@ void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
 void rankDocs
 (std::string line, unsigned int totalDocs, unsigned int numTerms,
     std::map<unsigned int, unsigned int>* numTermsInDoc) {
+    /* Colección que almacena la línea de la query como tokens. */
     boost::tokenizer<> tokens(line);
     std::map<unsigned int, double> scores;
     std::map<unsigned int, double> sumOfTfIdf;
     std::priority_queue
         <std::pair<unsigned int, double>,
         std::vector<std::pair<unsigned int, double>>, Prioritize> topK;
-    std::cout << "Rankeando para: \"" << line << "\"\n";
+    std::stack<std::pair<unsigned int, double>> topKOutput;
+    std::cout << "\"" << line << "\"\n";
 
     for (auto beg : tokens) {
         /* Se recupera el posting list del término dado. */
@@ -146,13 +151,13 @@ void rankDocs
              * que tiene los resultados para el documento dado.
              */
             auto termTfIdfs = result[pairDocFreq.first];
-            std::cout << "doc: " << pairDocFreq.first << "\n";
+            // std::cout << "doc: " << pairDocFreq.first << "\n";
 
             /* Se busca el tf-idf para el término dado. */
             auto pairTermTfIdf = termTfIdfs.find(hash_fn(beg));
             if (pairTermTfIdf != termTfIdfs.end()) {
-                std::cout << "tf-idf a sumar: ";
-                std::cout << (*pairTermTfIdf).second << "\n";
+                // std::cout << "tf-idf a sumar: ";
+                // std::cout << (*pairTermTfIdf).second << "\n";
 
                 /* Se suma el tf-idf de la palabra actual de la query. */
                 scores[pairDocFreq.first] += ((*pairTermTfIdf).second/denom);
@@ -167,10 +172,19 @@ void rankDocs
             topK.push(std::pair<unsigned int, double>(i, scores[i]));
         }
     }
-    std::cout << "Imprimiendo\n";
+    /* 
+     * Se ingresan los top-k documentos a la pila
+     * para imprimir de forma ascendente.
+     */
     while (!topK.empty()) {
-        std::cout << topK.top().first << " " << topK.top().second << "\n";
+        topKOutput.push(topK.top());
         topK.pop();
+    }
+    // std::cout << "Imprimiendo top-k documentos:\n";
+    while (!topKOutput.empty()) {
+        std::cout << topKOutput.top().first << " ";
+        std::cout << topKOutput.top().second << "\n";
+        topKOutput.pop();
     }
 }
 
@@ -183,15 +197,15 @@ void computeTfIdf
     auto itr = globalInvertedIndex.find(hash_fn(queryWord));
 
     if (itr != globalInvertedIndex.end()) {
-        std::cout << "------------------------------------------\n";
-        std::cout << "term: \"" << queryWord << "\" - ";
-        std::cout << itr->first << "\n";
+        // std::cout << "------------------------------------------\n";
+        // std::cout << "term: \"" << queryWord << "\" - ";
+        // std::cout << itr->first << "\n";
 
         /* Se itera sobre el map con docId y frecuencias para cada término. */
         /* El recorrido se hace por referencia para una mayor eficiencia. */
         for (auto &itr_tf : (*itr).second) {
-            std::cout << "doc: " << itr_tf.first;
-            std::cout << " - frec: " << itr_tf.second << "\n";
+            // std::cout << "doc: " << itr_tf.first;
+            // std::cout << " - frec: " << itr_tf.second << "\n";
 
             /* 
              * Se aumenta el contador de docs en los que está
@@ -206,14 +220,14 @@ void computeTfIdf
              * el término.
              */
             tf_idf = itr_tf.second * log(totalDocs/(*itr).second.size());
-            std::cout << "tf-idf: " << tf_idf << "\n";
+            // std::cout << "tf-idf: " << tf_idf << "\n";
 
             /* Se guarda el tf-idf asociado al docId y el término. */
             result[itr_tf.first][(*itr).first] = tf_idf;
         }
     }
 
-    std::cout << "------------------------------------------\n";
+    // std::cout << "------------------------------------------\n";
 }
 
 void showResults() {
@@ -264,10 +278,10 @@ unsigned int genInvertedIndex
             pageId = genInvertedIndex(invertedIndex, itr->path().string(),
                     pageId);
         } else {
-            std::cout << "[" << pageId << "] ";
-            std::cout << itr->path().filename() << "... ";
+            // std::cout << "[" << pageId << "] ";
+            // std::cout << itr->path().filename() << "... ";
             readPage(invertedIndex, itr->path().string(), pageId);
-            std::cout << "done!\n";
+            // std::cout << "done!\n";
 
             pageId++;
         }
