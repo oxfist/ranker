@@ -2,6 +2,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <utility>
@@ -61,40 +62,48 @@ void computeTfIdf
     std::map<unsigned int, unsigned int>* numTermsInDoc);
 TermFreq newPage(unsigned int id);
 void showResults();
-void readQueries(std::ifstream *queryFile, unsigned int totalDocs);
+void readQueries
+(std::ifstream *queryFile, unsigned int totalDocs, unsigned int k);
 void rankDocs
 (std::string line, unsigned int totalDocs, unsigned int numTerms,
-    std::map<unsigned int, unsigned int>* numTermsInDoc);
+    std::map<unsigned int, unsigned int>* numTermsInDoc, unsigned int k);
 
-int main() {
-    unsigned int totalDocs;
-    std::ifstream queryFile;
+int main(int argc, char* argv[]) {
+    if (argc == 4) {
+        unsigned int totalDocs;
+        std::ifstream queryFile;
 
-    queryFile.open("queries.txt");
+        queryFile.open(argv[1]);
 
-    /* Se abre el directorio 'dir_path' */
-    fsystem::path dir_path("pages");
+        /* Se abre el directorio 'dir_path' */
+        fsystem::path dir_path(argv[2]);
 
-    /* Se genera el set stopWords */
-    stopWords = fillStopWords();
+        /* Se genera el set stopWords */
+        stopWords = fillStopWords();
 
-    /* Se crea el índice invertido */
-    totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
+        /* Se crea el índice invertido */
+        totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
-    readQueries(&queryFile, totalDocs-1);
+        readQueries(&queryFile, totalDocs-1, static_cast<unsigned int>(atoi(argv[3])));
 
-    // std::cout << "Resultados parciales con map QueryResult\n";
+        // std::cout << "Resultados parciales con map QueryResult\n";
 
-    /* Se muestran los resultados parciales */
-    // showResults();
+        /* Se muestran los resultados parciales */
+        // showResults();
 
-    queryFile.close();
+        queryFile.close();
+    } else {
+        std::cout << "FATAL ERROR: incorrect number of arguments.\n";
+        std::cout << "Usage: ./inv_index <queries_file> <docs_path> <top-k>\n";
+    }
 
     return 0;
 }
 
-void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
+void readQueries
+(std::ifstream *queryFile, unsigned int totalDocs, unsigned int k) {
     std::string line, queryWord;
+    unsigned int queryNumber = 0;
     /* Contador de términos de la query. */
     unsigned int numTerms;
     /* 
@@ -108,6 +117,7 @@ void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
         if (line == "") {
             break;
         }
+        std::cout << ++queryNumber;
         numTerms = 0;
         boost::tokenizer<> tokens(line);
 
@@ -118,14 +128,15 @@ void readQueries(std::ifstream *queryFile, unsigned int totalDocs) {
             numTerms++;
         }
         /* Computar el score de los documentos para la query dada. */
-        rankDocs(line, totalDocs, numTerms, &numTermsInDoc);
+        rankDocs(line, totalDocs, numTerms, &numTermsInDoc, k);
         numTermsInDoc.clear();
+        std::cout << "\n";
     }
 }
 
 void rankDocs
 (std::string line, unsigned int totalDocs, unsigned int numTerms,
-    std::map<unsigned int, unsigned int>* numTermsInDoc) {
+    std::map<unsigned int, unsigned int>* numTermsInDoc, unsigned int k) {
     /* Colección que almacena la línea de la query como tokens. */
     boost::tokenizer<> tokens(line);
     std::map<unsigned int, double> scores;
@@ -134,7 +145,7 @@ void rankDocs
         <std::pair<unsigned int, double>,
         std::vector<std::pair<unsigned int, double>>, Prioritize> topK;
     std::stack<std::pair<unsigned int, double>> topKOutput;
-    std::cout << "\"" << line << "\"\n";
+    // std::cout << "\"" << line << "\"\n";
 
     for (auto beg : tokens) {
         /* Se recupera el posting list del término dado. */
@@ -165,7 +176,7 @@ void rankDocs
         }
     }
     for (unsigned int i = 1; i < totalDocs; i++) {
-        if (topK.size() < 3) {
+        if (topK.size() < k) {
             topK.push(std::pair<unsigned int, double>(i, scores[i]));
         } else if (topK.top().second < scores[i]) {
             topK.pop();
@@ -182,8 +193,8 @@ void rankDocs
     }
     // std::cout << "Imprimiendo top-k documentos:\n";
     while (!topKOutput.empty()) {
-        std::cout << topKOutput.top().first << " ";
-        std::cout << topKOutput.top().second << "\n";
+        std::cout << " " << topKOutput.top().first << " ";
+        std::cout << topKOutput.top().second;
         topKOutput.pop();
     }
 }
