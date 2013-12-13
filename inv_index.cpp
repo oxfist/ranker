@@ -1,4 +1,4 @@
-/* Copyright 2013 - Some rights reserved. <Andrés Caro Q.> */
+/* Copyright 2013 - No rights reserved. <Andrés Caro Q.> */
 #include <boost/tuple/tuple.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
