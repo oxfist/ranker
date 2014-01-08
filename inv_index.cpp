@@ -1,5 +1,4 @@
 /* Copyright 2013 - No rights reserved. <Andrés Caro Q.> */
-#include <boost/tuple/tuple.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
 #include <cstdlib>
@@ -84,7 +83,8 @@ int main(int argc, char* argv[]) {
         /* Se crea el índice invertido */
         totalDocs = genInvertedIndex(globalInvertedIndex, dir_path, 1);
 
-        readQueries(&queryFile, totalDocs-1, static_cast<unsigned int>(atoi(argv[3])));
+        readQueries(&queryFile, totalDocs-1,
+                static_cast<unsigned int>(atoi(argv[3])));
 
         // std::cout << "Resultados parciales con map QueryResult\n";
 
@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
     } else {
         std::cout << "FATAL ERROR: incorrect number of arguments.\n";
         std::cout << "Usage: ./inv_index <queries_file> <docs_path> <top-k>\n";
+        exit(EXIT_FAILURE);
     }
 
     return 0;
